@@ -1,67 +1,52 @@
-# Specify the provider
-provider "azurerm" {
-  features {}
-}
-
-# Define the resource group
+# Resource group
 resource "azurerm_resource_group" "cris_rg" {
-  name     = "cris-resource-group"
-  location = "East US"
+  name     = var.resource_group_name
+  location = var.resource_group_location
 }
 
-# Create a virtual network
+# Virtual network
 resource "azurerm_virtual_network" "cris_vnet" {
-  name                = "cris-vnet"
-  address_space       = ["10.0.0.0/16"]
+  name                = var.vnet_name
+  address_space       = [var.vnet_address]
   location            = azurerm_resource_group.cris_rg.location
   resource_group_name = azurerm_resource_group.cris_rg.name
 }
 
-# Create a subnet for the AKS cluster
+# AKS cluster subnet
 resource "azurerm_subnet" "cris_subnet" {
-  name                 = "cris-subnet"
+  name                 = var.subnet_name
   resource_group_name  = azurerm_resource_group.cris_rg.name
   virtual_network_name = azurerm_virtual_network.cris_vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
+  address_prefixes     = [var.subnet_address]
 }
 
-# Create the AKS cluster
+# AKS cluster
 resource "azurerm_kubernetes_cluster" "cris_cluster" {
-  name                = "cris-cluster"
+  name                = var.cluster_name
   location            = azurerm_resource_group.cris_rg.location
   resource_group_name = azurerm_resource_group.cris_rg.name
-  dns_prefix          = "cris-cluster-dns"
+  dns_prefix          = var.cluster_dns-prefix
 
   default_node_pool {
-    name       = "default"
-    node_count = 2
-    vm_size    = "Standard_DS2_v2"
-    vnet_subnet_id = azurerm_subnet.cris_subnet.id
+    name            = var.default-node-pool_name
+    node_count      = var.default-node-pool_count
+    vm_size         = var.default-node-pool_vmsize
+    vnet_subnet_id  = azurerm_subnet.cris_subnet.id
   }
 
   identity {
-    type = "SystemAssigned"
+    type = var.identity-type
   }
 
   role_based_access_control {
-    enabled = true
+    enabled = var.rbac_status
   }
 
   network_profile {
-    network_plugin    = "azure"
-    network_policy    = "calico"
-    dns_service_ip    = "10.0.2.10"
-    service_cidr      = "10.0.2.0/24"
-    docker_bridge_cidr = "172.17.0.1/16"
+    network_plugin      = var.network-plugin
+    network_policy      = var.network-policy
+    dns_service_ip      = var.network-dns
+    service_cidr        = var.network-cidr
+    docker_bridge_cidr  = var.network-bridge
   }
-}
-
-# Output the AKS cluster information
-output "aks_cluster_name" {
-  value = azurerm_kubernetes_cluster.cris_cluster.name
-}
-
-output "kube_config" {
-  value = azurerm_kubernetes_cluster.cris_cluster.kube_config_raw
-  sensitive = true
 }
